@@ -1,10 +1,11 @@
 /*jshint esversion: 6 */
 const headerCityButton  = document.querySelector('.header__city-button');
-
+const cartListGoods = document.querySelector('.cart__list-goods');
+const cartTotalCost = document.querySelector('.cart__total-cost');
+const subheaderCart = document.querySelector ('.subheader__cart');
+const cartOverlay = document.querySelector ('.cart-overlay');
+const cartBtnClose = document.querySelector ('.cart__btn-close');
 let hash = location.hash.substring(1);
-
-
-
 
 const updateLocation = () => {
     const lsLocation = localStorage.getItem('lomoda-location');
@@ -26,6 +27,50 @@ headerCityButton.addEventListener ('click', () => {
 });
 
     updateLocation();
+
+    const getLocalStorage = () => JSON?.parse(localStorage.getItem('cart-lomoda')) || [];
+    const setLocalStorage = data => localStorage.setItem('cart-lomoda', JSON.stringify(data));
+
+    const renderCart = () => {
+        cartListGoods.textContent = '';
+
+        const cartItems = getLocalStorage();
+
+        let totalPrice = 0;
+
+        cartItems.forEach((item, i) => {
+
+            const tr = document.createElement('tr');
+
+            tr.innerHTML =  `                        
+                <td>${i + 1}</td>
+                <td>${item.brand} ${item.name}</td>
+                ${item.color ? `<td>${item.color}</td>` : `<td>-</td>`}
+                ${item.size ? `<td>${item.size}</td>` : `<td>-</td>`}
+                <td>${item.cost} &#8381;</td>
+                <td><button class="btn-delete" data-id="${item.id}">&times;</button></td>
+            `;
+            totalPrice += item.cost;
+            cartListGoods.append(tr);
+        });
+
+        cartTotalCost.textContent = totalPrice + ' ₽';
+    };
+
+//   Удаление с корзины
+    const deleteItemCart = id => {
+        const cartItems = getLocalStorage();
+        const newCartItems = cartItems.filter(item => item.id !== id);
+        setLocalStorage(newCartItems);
+    };
+
+    cartListGoods.addEventListener('click', e => {
+        if(e.target.matches('.btn-delete')){
+            deleteItemCart(e.target.dataset.id);
+            renderCart();
+        }
+    });
+
 // блокировка скрола
 
 const disableScroll = () => {
@@ -52,13 +97,10 @@ const enableScroll = () => {
 
 // модальное окно
 
-const subheaderCart = document.querySelector ('.subheader__cart');
-const cartOverlay = document.querySelector ('.cart-overlay');
-const cartBtnClose = document.querySelector ('.cart__btn-close');
-
 const cartModalOpen = () => {
     cartOverlay.classList.add('cart-overlay-open');
     disableScroll();
+    renderCart();
 };
 
 const cartModalClose = () => {
@@ -107,6 +149,8 @@ cartOverlay.addEventListener('click', (event) => {
     }
 });
 
+
+
 // ========страница категорий======
     try {
         const goodsList = document.querySelector('.goods__list');
@@ -120,7 +164,7 @@ cartOverlay.addEventListener('click', (event) => {
             goodsTitle.textContent = document.querySelector(`[href*="#${hash}"]`).textContent;
         };
 
-        const createCard = ({id,preview, cost, brand, name, sizes}) => {
+        const createCart = ({id,preview, cost, brand, name, sizes}) => {
          
             
             const li = document.createElement('li');
@@ -153,8 +197,8 @@ cartOverlay.addEventListener('click', (event) => {
               
 
             data.forEach((item) => {
-                const card = createCard(item);
-                goodsList.append(card);
+                const cart = createCart(item);
+                goodsList.append(cart);
             });
         };
 
@@ -192,7 +236,9 @@ cartOverlay.addEventListener('click', (event) => {
         const generateList = data => data.reduce((html, item, i ) => html +
         `<li class= "card-good__select-item" data-id="${i}">${item}</li>`, '');
 
-        const renderCardGood = ([{brand, name, cost, color, sizes, photo}]) => {
+        const renderCardGood = ([{id, brand, name, cost, color, sizes, photo}]) => {
+            
+            const data = {brand, name, cost, id};
 
             cardGoodImage.src= `goods-image/${photo}`;
             cardGoodImage.alt = `${brand}  ${name}`;
@@ -214,6 +260,30 @@ cartOverlay.addEventListener('click', (event) => {
             }else {
                 cardGoodSizes.style.display = 'none';
             }
+
+            if(getLocalStorage().some(item => item.id === id)){
+                cardGoodBuy.classList.add('delete');            //удаление из корзины
+                cardGoodBuy.textContent = 'Удалить из корзины';//удаление из корзины
+            }
+
+
+            cardGoodBuy.addEventListener('click', () => {
+                if(cardGoodBuy.classList.contains('delete')){
+                    deleteItemCart(id);
+                    cardGoodBuy.classList.remove('delete');            //удаление из корзины
+                    cardGoodBuy.textContent = 'Добавить в корзину';  //удаление из корзины
+                    return;
+                }
+                if(color) data.color = cardGoodColor.textContent;
+                if(sizes) data.size = cardGoodSizes.textContent;
+            
+                cardGoodBuy.classList.add('delete');            //удаление из корзины
+                cardGoodBuy.textContent = 'Удалить из корзины';  //удаление из корзины
+
+                const cardData = getLocalStorage();
+                cardData.push(data);
+                setLocalStorage(cardData);
+            });
         };
             cardGoodSelectWrapper.forEach(item => {
                 item.addEventListener('click', e => {
@@ -224,13 +294,15 @@ cartOverlay.addEventListener('click', (event) => {
                     }
 
                     if(target.closest('.card-good__select-item')){
-                        const cardGoodSelect = item.querySelector('.card-good__select');
-                        cardGoodSelect.textContent = target.textContent;
-                        cardGoodSelect.dataset.id = target.dataset.id;
-                        cardGoodSelect.classList.remove('card-good__select__open');
+                        const cartGoodSelect = item.querySelector('.card-good__select');
+                        cartGoodSelect.textContent = target.textContent;
+                        cartGoodSelect.dataset.id = target.dataset.id;
+                        cartGoodSelect.classList.remove('card-good__select__open');
                     }
                 });
             });
+
+
 
         getGoods(renderCardGood, 'id', hash);
     } catch (err) {
